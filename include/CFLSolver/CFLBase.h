@@ -113,7 +113,14 @@ public:
     { return worklist.push(item); }
 
     virtual inline bool pushIntoWorklist(NodeID src, NodeID dst, Label ty, bool isPrimary = true)
-    { return pushIntoWorklist(CFLItem(src, dst, ty, isPrimary)); }
+    { 
+        // -- Edge dump
+        if (ty.first == 4) {
+            std::cout<<src<<" "<<dst<<" A"<<std::endl;
+        }
+
+        return pushIntoWorklist(CFLItem(src, dst, ty, isPrimary)); 
+    }
 
     virtual inline bool isInWorklist(CFLItem item)
     { return worklist.find(item); }
