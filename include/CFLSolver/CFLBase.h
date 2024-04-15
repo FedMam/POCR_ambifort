@@ -18,6 +18,7 @@
 #include <fstream>
 #include <thread>
 #include <pthread.h>
+#include "VFA/VFEdgeDump.h"
 
 namespace SVF
 {
@@ -115,9 +116,7 @@ public:
     virtual inline bool pushIntoWorklist(NodeID src, NodeID dst, Label ty, bool isPrimary = true)
     { 
         // -- Edge dump
-        if (ty.first == 4) {
-            std::cout<<src<<" "<<dst<<" A"<<std::endl;
-        }
+        dumpEdge(src, dst, ty);
 
         return pushIntoWorklist(CFLItem(src, dst, ty, isPrimary)); 
     }

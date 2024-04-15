@@ -16,6 +16,7 @@ static Option<bool> Gr_VFA("gr", "Grammar rewritting valueflow analysis", false)
 static Option<bool> GrGspan_VFA("grgspan", "Grammar rewritting Graspan valueflow analysis", false);
 static Option<bool> Focr_VFA("focr", "Transitive-reduction valueflow analysis", false);
 
+static Option<bool> EdgeDump("dump", "Edge dump into Neo4j CSV format", false);
 
 int main(int argc, char** argv)
 {
@@ -27,6 +28,11 @@ int main(int argc, char** argv)
     OptionBase::parseOptions(arg_num, arg_vec, "Valueflow analysis\n", "[options] <input>");
 
     VFAnalysis* vfa;
+
+    if (EdgeDump()) {
+        initEdgeDump();
+    }
+
     if (Default_VFA())
     {
         vfa = new StdVFA(inFileVec[0]);
@@ -61,6 +67,10 @@ int main(int argc, char** argv)
     {
         vfa = new PocrVFA(inFileVec[0]);
         vfa->analyze();
+    }
+
+    if (EdgeDump()) {
+        saveEdgesToFile(inFileVec[0] + ".dump", true);
     }
 
     return 0;

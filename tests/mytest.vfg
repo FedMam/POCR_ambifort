@@ -1,0 +1,16 @@
+0	2	a
+1	2	a
+1	4	a
+4	5	call_i	0
+5	6	call_i	1
+7	5	a
+6	3	a
+6	10	ret_i	1
+10	11	ret_i	0
+9	11	a
+11	12	call_i	2
+12	13	ret_i	2
+13	3	a
+8	10	a
+2	4	ret_i	3
+

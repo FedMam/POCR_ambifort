@@ -1,0 +1,26 @@
+# загрузить только файл с рёбрами
+
+LOAD CSV WITH HEADERS FROM 'file:///<имя-теста>.vfg.dump' AS edge
+MERGE (vs:Node {id: edge.Src })
+MERGE (vd:Node {id: edge.Dest})
+WITH vs, vd, edge
+CALL apoc.create.relationship(vs, edge.Nterm, {}, vd)
+YIELD rel
+RETURN rel;
+
+# загрузить файлы с рёбрами и с вершинами
+# (вершины, соответствующие входам и выходам
+# в функцию, будут обозначены)
+
+LOAD CSV WITH HEADERS FROM 'file:///<имя-теста>.vfg.dump.nodes' AS nod
+WITH nod
+CALL apoc.merge.node([nod.NodeClass], {id: toInteger(nod.NodeID)}, {}, {})
+YIELD node
+RETURN node;
+
+LOAD CSV WITH HEADERS FROM 'file:///<имя-теста>.vfg.dump' AS edge
+WITH edge
+MATCH (src {id: toInteger(edge.Src)}), (dest {id: toInteger(edge.Dest)})
+CALL apoc.create.relationship(src, edge.Nterm, {}, dest)
+YIELD rel
+RETURN rel;
