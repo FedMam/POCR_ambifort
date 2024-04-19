@@ -3,11 +3,14 @@
 #include "VFA/VFAnalysis.h"
 #include <fstream>
 #include <vector>
+#include <set>
 #include <unordered_map>
 
 using namespace SVF;
 
-enum NodeClass {
+// === TYPES & BASIC VARIABLES ===
+
+enum NodeType {
     Normal,
     Entry,
     Exit,
@@ -19,16 +22,61 @@ typedef std::pair<std::pair<NodeID, NodeID>, Label> EdgeDesc;
 static bool initialized = false;
 
 // node type: entry, normal, exit or entry-exit
-static std::unordered_map<NodeID, NodeClass> nodeMap;
+static std::unordered_map<NodeID, NodeType> nodeTypeMap;
 static std::vector<EdgeDesc> edges;
 
-static unsigned long numFunctions = 0;
+// === DISJOINT SET UNION ===
+
+static std::unordered_map<NodeID, NodeID>   dsuNodePrev;
+static std::unordered_map<NodeID, unsigned> dsuNodeRank; // ranks heuristic
+
+static void dsuNewNode(NodeID node) {
+    // initially, each node belongs to its own function
+    dsuNodePrev[node] = node;
+    dsuNodeRank[node] = 1;
+}
+
+static void dsuNewNodeIfNotExists(NodeID node) {
+    if (dsuNodePrev.find(node) == dsuNodePrev.end())
+        dsuNewNode(node);   
+}
+
+static NodeID dsuRoot(NodeID node) {
+    dsuNewNodeIfNotExists(node);
+
+    NodeID root = node;
+    while (dsuNodePrev[root] != root)
+        root = dsuNodePrev[root];
+    
+    dsuNodePrev[node] = root; // path compression heuristic
+    return root;
+}
+
+static void dsuUnite(NodeID nodeA, NodeID nodeB) {
+    NodeID rootA = dsuRoot(nodeA), rootB = dsuRoot(nodeB);
+    if (rootA == rootB)
+        return;
+
+    unsigned rankA = dsuNodeRank[rootA], rankB = dsuNodeRank[rootB];
+    if (rankA > rankB)
+        dsuNodePrev[rootB] = rootA;
+    else if (rankB > rankA)
+        dsuNodePrev[rootA] = rootB;
+    else {
+        dsuNodePrev[rootB] = rootA;
+        dsuNodeRank[rootA]++;
+    }
+}
+
+// === DUMP FUNCTIONS ===
 
 void initEdgeDump() {
     initialized = true;
 
-    nodeMap = std::unordered_map<NodeID, NodeClass>();
+    nodeTypeMap = std::unordered_map<NodeID, NodeType>();
     edges = std::vector<EdgeDesc>();
+    dsuNodePrev = std::unordered_map<NodeID, NodeID>();
+    dsuNodeRank = std::unordered_map<NodeID, unsigned>();
 }
 
 void dumpEdge(NodeID src, NodeID dest, Label ty) {
@@ -36,56 +84,88 @@ void dumpEdge(NodeID src, NodeID dest, Label ty) {
 
     edges.push_back({{src, dest}, ty});
 
+    dsuNewNodeIfNotExists(src);
+    dsuNewNodeIfNotExists(dest);
+
     if (ty.first == VFAnalysis::call) {
-        if (nodeMap.find(dest) != nodeMap.end()) {
-            NodeClass nodeClass = nodeMap[dest];
-            if (nodeClass == Normal)
-                nodeMap[dest] = Entry;
-            else if (nodeClass == Exit)
-                nodeMap[dest] = EntryExit;
+        if (nodeTypeMap.find(dest) != nodeTypeMap.end()) {
+            NodeType nodeType = nodeTypeMap[dest];
+            if (nodeType == Normal)
+                nodeTypeMap[dest] = Entry;
+            else if (nodeType == Exit)
+                nodeTypeMap[dest] = EntryExit;
         }
-        else nodeMap[dest] = Entry;
+        else nodeTypeMap[dest] = Entry;
     } 
-    else if (nodeMap.find(dest) == nodeMap.end())
-        nodeMap[dest] = Normal;
+    else if (nodeTypeMap.find(dest) == nodeTypeMap.end())
+        nodeTypeMap[dest] = Normal;
 
     if (ty.first == VFAnalysis::ret) {
-        if (nodeMap.find(src) != nodeMap.end()) {
-            NodeClass nodeClass = nodeMap[src];
-            if (nodeClass == Normal)
-                nodeMap[src] = Exit;
-            else if (nodeClass == Entry)
-                nodeMap[src] = EntryExit;
-        } else nodeMap[src] = Exit;
+        if (nodeTypeMap.find(src) != nodeTypeMap.end()) {
+            NodeType nodeType = nodeTypeMap[src];
+            if (nodeType == Normal)
+                nodeTypeMap[src] = Exit;
+            else if (nodeType == Entry)
+                nodeTypeMap[src] = EntryExit;
+        } else nodeTypeMap[src] = Exit;
     }
-    else if (nodeMap.find(src) == nodeMap.end())
-        nodeMap[src] = Normal;
+    else if (nodeTypeMap.find(src) == nodeTypeMap.end())
+        nodeTypeMap[src] = Normal;
+
+    if (ty.first == VFAnalysis::A) {
+        // two nodes belong to one function if and only
+        // if they are connected with an 'A' edge
+        dsuUnite(src, dest);
+    }
 }
 
 void saveEdgesToFile(std::string fileName, bool dumpNodes) {
     if (!initialized) return;
 
+    // ~~~ nodes dump ~~~
+
     if (dumpNodes) {
+        // here, we map the root node IDs from the DSU
+        // to values starting from 1. These values will
+        // serve as function IDs in the resulting file.
+        // So, instead of f12, f37, f844, f6172 we will
+        // get f1, f2, f3, f4.
+        std::set<NodeID> dsuRootIDs;
+        for (auto nodePrev: dsuNodePrev) {
+            NodeID node = nodePrev.first;
+            NodeID root = dsuRoot(node);
+            dsuRootIDs.insert(root);
+        }
+        std::unordered_map<NodeID, unsigned> functionIDs;
+        unsigned rootIDCurr = 1;
+        for (auto root: dsuRootIDs) {
+            functionIDs[root] = rootIDCurr;
+            rootIDCurr++;
+        }
+
         std::ofstream nodesFile;
         nodesFile.open(fileName + ".nodes");
-        nodesFile<<"NodeID,NodeClass\n";
+        nodesFile<<"NodeID,NodeType,FunctionID\n";
 
-        for (auto &nodeDesc: nodeMap) {
+        for (auto &nodeDesc: nodeTypeMap) {
             nodesFile<<nodeDesc.first<<",";
             switch(nodeDesc.second) {
                 case Normal:
-                    nodesFile<<"Normal\n"; break;
+                    nodesFile<<"Normal,"; break;
                 case Entry:
-                    nodesFile<<"Entry\n"; break;
+                    nodesFile<<"Entry,"; break;
                 case Exit:
-                    nodesFile<<"Exit\n"; break;
+                    nodesFile<<"Exit,"; break;
                 case EntryExit:
-                    nodesFile<<"EntryExit\n"; break;
+                    nodesFile<<"EntryExit,"; break;
             }
+            nodesFile<<functionIDs[dsuRoot(nodeDesc.first)]<<"\n";
         }
 
         nodesFile.close();
     }
+
+    // ~~~ edges dump ~~~
 
     std::ofstream edgesFile;
     edgesFile.open(fileName);

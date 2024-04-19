@@ -14,7 +14,7 @@ RETURN rel;
 
 LOAD CSV WITH HEADERS FROM 'file:///<имя-теста>.vfg.dump.nodes' AS nod
 WITH nod
-CALL apoc.merge.node([nod.NodeClass], {id: toInteger(nod.NodeID)}, {}, {})
+CALL apoc.merge.node([nod.NodeType], {id: toInteger(nod.NodeID), function: toInteger(nod.FunctionID)}, {}, {})
 YIELD node
 RETURN node;
 
@@ -24,3 +24,11 @@ MATCH (src {id: toInteger(edge.Src)}), (dest {id: toInteger(edge.Dest)})
 CALL apoc.create.relationship(src, edge.Nterm, {}, dest)
 YIELD rel
 RETURN rel;
+
+# запрос, который не использует apoc
+
+LOAD CSV WITH HEADERS FROM 'file:///<имя-теста>.vfg.dump' AS edge
+MERGE (vs:Node {id: toInteger(edge.Src ) })
+MERGE (vd:Node {id: toInteger(edge.Dest) })
+MERGE (vs)-[e: EDGE {label: edge.Nterm}]->(vd);
+
