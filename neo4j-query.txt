@@ -8,6 +8,13 @@ CALL apoc.create.relationship(vs, edge.Nterm, {}, vd)
 YIELD rel
 RETURN rel;
 
+# загрузить только файл с рёбрами (без использования apoc)
+
+LOAD CSV WITH HEADERS FROM 'file:///<имя-теста>.vfg.dump' AS edge
+MERGE (vs:Node {id: toInteger(edge.Src ) })
+MERGE (vd:Node {id: toInteger(edge.Dest) })
+MERGE (vs)-[e: EDGE {label: edge.Nterm}]->(vd);
+
 # загрузить файлы с рёбрами и с вершинами
 # (вершины, соответствующие входам и выходам
 # в функцию, будут обозначены)
@@ -25,10 +32,10 @@ CALL apoc.create.relationship(src, edge.Nterm, {}, dest)
 YIELD rel
 RETURN rel;
 
-# запрос, который не использует apoc
+# загрузить call-граф
 
-LOAD CSV WITH HEADERS FROM 'file:///<имя-теста>.vfg.dump' AS edge
-MERGE (vs:Node {id: toInteger(edge.Src ) })
-MERGE (vd:Node {id: toInteger(edge.Dest) })
-MERGE (vs)-[e: EDGE {label: edge.Nterm}]->(vd);
+LOAD CSV WITH HEADERS FROM 'file:///<имя-теста>.vfg.dump.callgraph' AS cgedge
+MERGE (fs:Function {id: cgedge.Src })
+MERGE (fd:Function {id: cgedge.Dest })
+MERGE (fs)-[e: CALL]->(fd);
 

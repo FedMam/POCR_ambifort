@@ -1,9 +1,9 @@
 #include "CFLSolver/CFLBase.h"
-#include "VFA/VFEdgeDump.h"
-#include "VFA/VFAnalysis.h"
+#include "CFLData/EdgeDump.h"
 #include <fstream>
 #include <vector>
 #include <set>
+#include <unordered_set>
 #include <unordered_map>
 
 using namespace SVF;
@@ -24,6 +24,11 @@ static bool initialized = false;
 // node type: entry, normal, exit or entry-exit
 static std::unordered_map<NodeID, NodeType> nodeTypeMap;
 static std::vector<EdgeDesc> edges;
+static std::unordered_map<CFGSymbTy, std::string> intToSymbMap;
+
+char const *const callSymName = "call_i";
+char const *const retSymName = "ret_i";
+char const *const intraFuncSymName = "A";
 
 // === DISJOINT SET UNION ===
 
@@ -77,6 +82,13 @@ void initEdgeDump() {
     edges = std::vector<EdgeDesc>();
     dsuNodePrev = std::unordered_map<NodeID, NodeID>();
     dsuNodeRank = std::unordered_map<NodeID, unsigned>();
+    intToSymbMap = std::unordered_map<CFGSymbTy, std::string>();
+}
+
+void edgeDumpSetSymbol(CFGSymbTy sym, std::string symName) {
+    if (!initialized) return;
+
+    intToSymbMap[sym] = symName;
 }
 
 void dumpEdge(NodeID src, NodeID dest, Label ty) {
@@ -87,7 +99,7 @@ void dumpEdge(NodeID src, NodeID dest, Label ty) {
     dsuNewNodeIfNotExists(src);
     dsuNewNodeIfNotExists(dest);
 
-    if (ty.first == VFAnalysis::call) {
+    if (intToSymbMap[ty.first] == callSymName) {
         if (nodeTypeMap.find(dest) != nodeTypeMap.end()) {
             NodeType nodeType = nodeTypeMap[dest];
             if (nodeType == Normal)
@@ -100,7 +112,7 @@ void dumpEdge(NodeID src, NodeID dest, Label ty) {
     else if (nodeTypeMap.find(dest) == nodeTypeMap.end())
         nodeTypeMap[dest] = Normal;
 
-    if (ty.first == VFAnalysis::ret) {
+    if (intToSymbMap[ty.first] == retSymName) {
         if (nodeTypeMap.find(src) != nodeTypeMap.end()) {
             NodeType nodeType = nodeTypeMap[src];
             if (nodeType == Normal)
@@ -112,19 +124,18 @@ void dumpEdge(NodeID src, NodeID dest, Label ty) {
     else if (nodeTypeMap.find(src) == nodeTypeMap.end())
         nodeTypeMap[src] = Normal;
 
-    if (ty.first == VFAnalysis::A) {
+    if (intToSymbMap[ty.first] == intraFuncSymName) {
         // two nodes belong to one function if and only
         // if they are connected with an 'A' edge
         dsuUnite(src, dest);
     }
 }
 
-void saveEdgesToFile(std::string fileName, bool dumpNodes) {
+void saveEdgesToFile(std::string fileName, bool dumpNodes, bool dumpCallGraph) {
     if (!initialized) return;
 
-    // ~~~ nodes dump ~~~
-
-    if (dumpNodes) {
+    std::unordered_map<NodeID, unsigned> functionIDs;
+    if (dumpNodes || dumpCallGraph) {
         // here, we map the root node IDs from the DSU
         // to values starting from 1. These values will
         // serve as function IDs in the resulting file.
@@ -136,13 +147,17 @@ void saveEdgesToFile(std::string fileName, bool dumpNodes) {
             NodeID root = dsuRoot(node);
             dsuRootIDs.insert(root);
         }
-        std::unordered_map<NodeID, unsigned> functionIDs;
+        functionIDs = std::unordered_map<NodeID, unsigned>();
         unsigned rootIDCurr = 1;
         for (auto root: dsuRootIDs) {
             functionIDs[root] = rootIDCurr;
             rootIDCurr++;
         }
+    }
 
+    // ~~~ nodes dump ~~~
+    
+    if (dumpNodes) {
         std::ofstream nodesFile;
         nodesFile.open(fileName + ".nodes");
         nodesFile<<"NodeID,NodeType,FunctionID\n";
@@ -174,25 +189,36 @@ void saveEdgesToFile(std::string fileName, bool dumpNodes) {
     for (auto &edge: edges) {
         edgesFile<<edge.first.first<<","<<edge.first.second<<",";
         Label ty = edge.second;
-        switch (ty.first) {
-            case VFAnalysis::a:
-                edgesFile<<"a\n"; break;
-            case VFAnalysis::A:
-                edgesFile<<"A\n"; break;
-            case VFAnalysis::call:
-                edgesFile<<"call_"<<ty.second<<"\n"; break;
-            case VFAnalysis::ret:
-                edgesFile<<"ret_"<<ty.second<<"\n"; break;
-            case VFAnalysis::Cl:
-                edgesFile<<"Cl_"<<ty.second<<"\n"; break;
-            case VFAnalysis::B:
-                edgesFile<<"B\n"; break;
-            case VFAnalysis::fault:
-                edgesFile<<"fault\n"; break;
-            default:
-                edgesFile<<"unknown\n"; break;
+        std::string symb = intToSymbMap[ty.first];
+        if (symb[symb.length() - 2] == '_' && symb[symb.length() - 1] == 'i') {
+            edgesFile<<symb.substr(0, symb.length() - 1); // without i
+            edgesFile<<ty.second<<"\n";
         }
+        else edgesFile<<symb<<"\n";
     }
-
     edgesFile.close();
+
+    // ~~~ callgraph dump ~~~
+
+    if (dumpCallGraph) {
+        std::unordered_set<std::pair<unsigned, unsigned>> callGraphEdges;
+        for (auto &edge: edges) {
+            Label ty = edge.second;
+            unsigned srcFuncID = functionIDs[dsuRoot(edge.first.first )];
+            unsigned dstFuncID = functionIDs[dsuRoot(edge.first.second)];
+            if (intToSymbMap[ty.first] == callSymName) {
+                callGraphEdges.insert({srcFuncID, dstFuncID});
+            }
+        }
+
+        std::ofstream callGraphFile;
+        callGraphFile.open(fileName + ".callgraph");
+        callGraphFile<<"Src,Dest\n";
+
+        for (auto &cgedge: callGraphEdges) {
+            callGraphFile<<"f"<<cgedge.first<<",f"<<cgedge.second<<"\n";
+        }
+
+        callGraphFile.close();
+    }
 }

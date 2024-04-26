@@ -18,7 +18,7 @@
 #include <fstream>
 #include <thread>
 #include <pthread.h>
-#include "VFA/VFEdgeDump.h"
+#include "CFLData/EdgeDump.h"
 
 namespace SVF
 {

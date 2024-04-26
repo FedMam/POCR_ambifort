@@ -4,6 +4,7 @@
 
 #include "CFLSolver/CFLBase.h"
 #include "CFLData/CFG.h"
+#include "CFLData/EdgeDump.h"
 #include <iostream>
 
 using namespace SVF;
@@ -186,4 +187,9 @@ void CFG::printCFGStat()
     std::cout << "#Rule = " << numOfRules << std::endl;
 
     std::cout << std::endl;
+
+    // -- Edge dump
+    // Here, we send the list of symbols to the edge dump
+    for (auto& it : intToSymbMap)
+        edgeDumpSetSymbol(it.first, it.second);
 }

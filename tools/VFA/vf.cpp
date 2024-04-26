@@ -2,6 +2,8 @@
  // Valueflow analysis
  //
  // Author: Kisslune
+ //
+ // Modified by: FedMam
  */
 
 #include "SVF-LLVM/LLVMUtil.h"
@@ -16,7 +18,7 @@ static Option<bool> Gr_VFA("gr", "Grammar rewritting valueflow analysis", false)
 static Option<bool> GrGspan_VFA("grgspan", "Grammar rewritting Graspan valueflow analysis", false);
 static Option<bool> Focr_VFA("focr", "Transitive-reduction valueflow analysis", false);
 
-static Option<bool> EdgeDump("dump", "Edge dump into Neo4j CSV format", false);
+// static Option<bool> EdgeDump("dump", "Edge dump into Neo4j CSV format", false);
 
 int main(int argc, char** argv)
 {
@@ -29,9 +31,11 @@ int main(int argc, char** argv)
 
     VFAnalysis* vfa;
 
+/*
     if (EdgeDump()) {
         initEdgeDump();
     }
+*/
 
     if (Default_VFA())
     {
@@ -69,9 +73,11 @@ int main(int argc, char** argv)
         vfa->analyze();
     }
 
+/*
     if (EdgeDump()) {
-        saveEdgesToFile(inFileVec[0] + ".dump", true);
+        saveEdgesToFile(inFileVec[0] + ".dump", true, true);
     }
+*/
 
     return 0;
 }

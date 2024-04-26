@@ -1,9 +1,15 @@
 /*
  // Author: Kisslune
+ //
+ // Modified by: FedMam
  */
 
 #include "SVF-LLVM/LLVMUtil.h"
 #include "CFLSolver/CFLSolver.h"
+#include "CFLData/EdgeDump.h"
+
+// --
+#include <cstdio>
 
 using namespace SVF;
 
@@ -14,6 +20,7 @@ static Option<bool> Focr_CFL("focr", "Uni-directional CFL-reachability analysis"
 static Option<bool> Tr_CFL("trold", "Uni-directional CFL-reachability analysis", false);
 static Option<bool> TrFocr_CFL("tr", "Uni-directional CFL-reachability analysis", false);
 
+static Option<bool> EdgeDump("dump", "Edge dump into Neo4j CSV format", false);
 
 int main(int argc, char** argv)
 {
@@ -25,6 +32,10 @@ int main(int argc, char** argv)
     OptionBase::parseOptions(arg_num, arg_vec, "CFL-reachability analysis\n", "[options] <input>");
 
     StdCFL* cfl;
+
+    if (EdgeDump()) {
+        initEdgeDump();
+    }
 
     if (Default_CFL())
     {
@@ -62,6 +73,12 @@ int main(int argc, char** argv)
         cfl->analyze();
     }
 
+    if (EdgeDump()) {
+        saveEdgesToFile(inFileVec[1] + ".dump", true, true);
+    }
+
+    // --
+    printf("ok3\n");
 
     return 0;
 }
