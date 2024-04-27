@@ -1,13 +1,3 @@
-# загрузить только файл с рёбрами
-
-LOAD CSV WITH HEADERS FROM 'file:///<имя-теста>.vfg.dump' AS edge
-MERGE (vs:Node {id: edge.Src })
-MERGE (vd:Node {id: edge.Dest})
-WITH vs, vd, edge
-CALL apoc.create.relationship(vs, edge.Nterm, {}, vd)
-YIELD rel
-RETURN rel;
-
 # загрузить только файл с рёбрами (без использования apoc)
 
 LOAD CSV WITH HEADERS FROM 'file:///<имя-теста>.vfg.dump' AS edge
@@ -17,13 +7,25 @@ MERGE (vs)-[e: EDGE {label: edge.Nterm}]->(vd);
 
 # загрузить файлы с рёбрами и с вершинами
 # (вершины, соответствующие входам и выходам
-# в функцию, будут обозначены)
+# в функцию, будут иметь соответствующие флаги)
 
 LOAD CSV WITH HEADERS FROM 'file:///<имя-теста>.vfg.dump.nodes' AS nod
 WITH nod
-CALL apoc.merge.node([nod.NodeType], {id: toInteger(nod.NodeID), function: toInteger(nod.FunctionID)}, {}, {})
-YIELD node
-RETURN node;
+MERGE (n:Node {id: toInteger(nod.NodeID), flags: split(nod.NodeFlags, '|'), function: toInteger(nod.FunctionID)});
+
+LOAD CSV WITH HEADERS FROM 'file:///<имя-теста>.vfg.dump' AS edge
+WITH edge
+MATCH (src {id: toInteger(edge.Src)}), (dest {id: toInteger(edge.Dest)})
+MERGE (src)-[e:Edge {nterm: edge.Nterm}]->(dest);
+
+# загрузить файлы с рёбрами и с вершинами
+# этот запрос использует функции библиотеки apoc,
+# которые позволят отмечать рёбра с разным нетерминалом
+# разными цветами для удобства
+
+LOAD CSV WITH HEADERS FROM 'file:///<имя-теста>.vfg.dump.nodes' AS nod
+WITH nod
+MERGE (n:Node {id: toInteger(nod.NodeID), flags: split(nod.NodeFlags, '|'), function: toInteger(nod.FunctionID)});
 
 LOAD CSV WITH HEADERS FROM 'file:///<имя-теста>.vfg.dump' AS edge
 WITH edge

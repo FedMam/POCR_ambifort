@@ -21,7 +21,8 @@ public:
         Production,     // production rule
         Insert,         // insert non-terminals
         Follow,         // follow non-terminals
-        Count           // count non-terminals
+        Count,          // count non-terminals
+        Dump
     };
 
     LineTy lineTy;      // used to track the type of the current line
@@ -38,6 +39,7 @@ public:
     Set<CFGSymbTy> insertSymbols;
     Set<CFGSymbTy> followSymbols;
     Set<CFGSymbTy> countSymbols;
+    Set<CFGSymbTy> dumpSymbols;
 
     /// Sets of rules
     Set<CFGSymbTy> emptyRules;                                          // X ::= epsilon
@@ -95,6 +97,9 @@ public:
 
     bool isCountSymbol(CFGSymbTy s)
     { return countSymbols.find(s) != countSymbols.end(); }
+
+    bool isDumpSymbol(CFGSymbTy s)
+    { return dumpSymbols.find(s) != dumpSymbols.end(); }
 
     void parseGrammar(std::string fname);
     void readGrammarFile(std::string fname);
