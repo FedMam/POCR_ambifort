@@ -22,3 +22,5 @@ doxygen/
 *.obj
 *.svf
 cmake-build-debug/
+*.dump
+*.dump.*
