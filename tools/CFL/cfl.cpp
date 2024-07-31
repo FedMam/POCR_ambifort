@@ -8,6 +8,9 @@
 #include "CFLSolver/CFLSolver.h"
 #include "CFLData/EdgeDump.h"
 
+// --
+#include <cstdio>
+
 using namespace SVF;
 
 static Option<bool> Default_CFL("std", "Standard CFL-reachability analysis", false);
@@ -73,6 +76,9 @@ int main(int argc, char** argv)
     if (EdgeDump()) {
         saveEdgesToFile(inFileVec[1] + ".dump", true, true);
     }
+
+    // --
+    printf("ok3\n");
 
     return 0;
 }

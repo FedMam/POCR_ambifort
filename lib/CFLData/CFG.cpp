@@ -56,11 +56,6 @@ void CFG::readGrammarFile(std::string fname)
             lineTy = Count;
             continue;
         }
-        else if (line == "Dump:")
-        {
-            lineTy = Dump;
-            continue;
-        }
         //@}
 
         if (lineTy == Production)
@@ -111,8 +106,6 @@ void CFG::readUCFLSymbol(std::string& line, LineTy ty)
         ucflSymbolSet = &followSymbols;
     else if (ty == Count)
         ucflSymbolSet = &countSymbols;
-    else if (ty == Dump)
-        ucflSymbolSet = &dumpSymbols;
 
     if (!ucflSymbolSet)
         return;
@@ -190,11 +183,6 @@ void CFG::printCFGStat()
         std::cout << getSymbolString(it) << ", ";
     std::cout << std::endl;
 
-    std::cout << "Dump:" << "\t\t";
-    for (auto it : dumpSymbols)
-        std::cout << getSymbolString(it) << ", ";
-    std::cout << std::endl;
-
     std::cout << "#VariantSymbol = " << numOfVariantSymbols << std::endl;
     std::cout << "#Rule = " << numOfRules << std::endl;
 
@@ -203,6 +191,5 @@ void CFG::printCFGStat()
     // -- Edge dump
     // Here, we send the list of symbols to the edge dump
     for (auto& it : intToSymbMap)
-        if (isDumpSymbol(it.first))
-            edgeDumpSetSymbol(it.first, it.second);
+        edgeDumpSetSymbol(it.first, it.second);
 }
