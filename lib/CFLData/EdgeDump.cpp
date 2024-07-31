@@ -29,6 +29,7 @@ static std::unordered_map<CFGSymbTy, std::string> intToSymbMap;
 char const *const callSymName = "call_i";
 char const *const retSymName = "ret_i";
 char const *const intraFuncSymName = "A";
+char const *const summOrderSymName = "A";
 
 // === DISJOINT SET UNION ===
 
@@ -184,7 +185,8 @@ void saveEdgesToFile(std::string fileName, bool dumpNodes, bool dumpCallGraph) {
 
     std::ofstream edgesFile;
     edgesFile.open(fileName);
-    edgesFile<<"Src,Dest,Nterm\n";
+    edgesFile<<"Src,Dest,Nterm,SummOrder\n";
+    int summOrder = 0;
 
     for (auto &edge: edges) {
         edgesFile<<edge.first.first<<","<<edge.first.second<<",";
@@ -192,9 +194,15 @@ void saveEdgesToFile(std::string fileName, bool dumpNodes, bool dumpCallGraph) {
         std::string symb = intToSymbMap[ty.first];
         if (symb[symb.length() - 2] == '_' && symb[symb.length() - 1] == 'i') {
             edgesFile<<symb.substr(0, symb.length() - 1); // without i
-            edgesFile<<ty.second<<"\n";
+            edgesFile<<ty.second<<",";
         }
-        else edgesFile<<symb<<"\n";
+        else edgesFile<<symb<<",";
+
+        if (symb == summOrderSymName && edge.first.first != edge.first.second) { // edge is not a hinge
+            edgesFile<<summOrder;
+            summOrder++;
+        }
+        edgesFile<<"\n";
     }
     edgesFile.close();
 

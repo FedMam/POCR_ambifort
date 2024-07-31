@@ -74,7 +74,7 @@ int main(int argc, char** argv)
     }
 
     if (EdgeDump()) {
-        saveEdgesToFile(inFileVec[1] + ".dump", true, true);
+        saveEdgesToFile(inFileVec[1] + ".dump", false, false);
     }
 
     // --
